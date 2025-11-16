@@ -1,9 +1,4 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -11,20 +6,36 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:wastevision_mobile/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('HomePage shows initial WasteVision UI', (WidgetTester tester) async {
+    // Configure a larger virtual device size to avoid layout overflow in tests.
+    tester.binding.window.physicalSizeTestValue = const ui.Size(1080, 1920);
+    tester.binding.window.devicePixelRatioTestValue = 1.0;
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    addTearDown(() {
+      tester.binding.window.clearPhysicalSizeTestValue();
+      tester.binding.window.clearDevicePixelRatioTestValue();
+    });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+    // Build the WasteVision app and trigger a frame.
+    await tester.pumpWidget(const WasteVisionApp());
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    // Verify header text is shown.
+    expect(find.text('Classify your waste with AI'), findsOneWidget);
+
+    // Verify helper text is shown.
+    expect(
+      find.textContaining('Take a photo or choose from gallery'),
+      findsOneWidget,
+    );
+
+    // Verify primary action buttons exist.
+    expect(find.text('Gallery'), findsOneWidget);
+    expect(find.text('Camera'), findsOneWidget);
+
+    // Verify default preview state.
+    expect(find.text('No image selected'), findsOneWidget);
+
+    // Verify classify button exists.
+    expect(find.text('Classify (dummy)'), findsOneWidget);
   });
 }

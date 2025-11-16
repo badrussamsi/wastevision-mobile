@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -8,8 +10,9 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  // TODO: connect this to a real picked image (File/ImageProvider) later
-  ImageProvider? _selectedImage;
+  final ImagePicker _picker = ImagePicker();
+
+  File? _selectedFile;
 
   @override
   Widget build(BuildContext context) {
@@ -75,10 +78,10 @@ class _HomePageState extends State<HomePage> {
           borderRadius: BorderRadius.circular(12),
           child: Container(
             color: theme.colorScheme.surfaceVariant.withOpacity(0.5),
-            child: _selectedImage == null
+            child: _selectedFile == null
                 ? _buildEmptyPreview(theme)
-                : Image(
-                    image: _selectedImage!,
+                : Image.file(
+                    _selectedFile!,
                     fit: BoxFit.cover,
                   ),
           ),
@@ -114,10 +117,7 @@ class _HomePageState extends State<HomePage> {
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {
-              // TODO: implement pick from gallery
-              _showComingSoon(context);
-            },
+            onPressed: () => _pickImage(ImageSource.gallery),
             icon: const Icon(Icons.photo_library_outlined),
             label: const Text('Gallery'),
           ),
@@ -125,10 +125,7 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: () {
-              // TODO: implement take photo with camera
-              _showComingSoon(context);
-            },
+            onPressed: () => _pickImage(ImageSource.camera),
             icon: const Icon(Icons.photo_camera_outlined),
             label: const Text('Camera'),
           ),
@@ -138,19 +135,20 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildClassifyButton(BuildContext context) {
-    final hasImage = _selectedImage != null;
+    final hasImage = _selectedFile != null;
 
     return FilledButton.icon(
       onPressed: hasImage
           ? () {
-              // TODO: connect to backend /predict endpoint
-              _showComingSoon(context);
+              _showSnack(
+                context,
+                'This will send the image to the AI backend (coming soon).',
+              );
             }
           : () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Pick or capture an image first.'),
-                ),
+              _showSnack(
+                context,
+                'Pick or capture an image first.',
               );
             },
       icon: const Icon(Icons.auto_awesome),
@@ -158,11 +156,28 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  void _showComingSoon(BuildContext context) {
+  Future<void> _pickImage(ImageSource source) async {
+    try {
+      final XFile? picked = await _picker.pickImage(
+        source: source,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 85,
+      );
+
+      if (picked == null) return;
+
+      setState(() {
+        _selectedFile = File(picked.path);
+      });
+    } catch (e) {
+      _showSnack(context, 'Failed to pick image: $e');
+    }
+  }
+
+  void _showSnack(BuildContext context, String message) {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('This action will be implemented soon.'),
-      ),
+      SnackBar(content: Text(message)),
     );
   }
 }
