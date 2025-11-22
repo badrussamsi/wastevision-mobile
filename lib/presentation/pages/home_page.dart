@@ -1,6 +1,10 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'package:wastevision_mobile/data/api/prediction_api.dart';
+import 'package:wastevision_mobile/presentation/pages/result_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -13,6 +17,7 @@ class _HomePageState extends State<HomePage> {
   final ImagePicker _picker = ImagePicker();
 
   File? _selectedFile;
+  bool _isClassifying = false;
 
   @override
   Widget build(BuildContext context) {
@@ -81,9 +86,9 @@ class _HomePageState extends State<HomePage> {
             child: _selectedFile == null
                 ? _buildEmptyPreview(theme)
                 : Image.file(
-                    _selectedFile!,
-                    fit: BoxFit.cover,
-                  ),
+              _selectedFile!,
+              fit: BoxFit.cover,
+            ),
           ),
         ),
       ),
@@ -138,21 +143,19 @@ class _HomePageState extends State<HomePage> {
     final hasImage = _selectedFile != null;
 
     return FilledButton.icon(
-      onPressed: hasImage
-          ? () {
-              _showSnack(
-                context,
-                'This will send the image to the AI backend (coming soon).',
-              );
-            }
-          : () {
-              _showSnack(
-                context,
-                'Pick or capture an image first.',
-              );
-            },
-      icon: const Icon(Icons.auto_awesome),
-      label: const Text('Classify (dummy)'),
+      onPressed: (!_isClassifying && hasImage)
+          ? () => _onClassifyPressed(context)
+          : (!_isClassifying && !hasImage)
+          ? () => _showSnack(context, 'Pick or capture an image first.')
+          : null, // disabled while classifying
+      icon: _isClassifying
+          ? const SizedBox(
+        width: 18,
+        height: 18,
+        child: CircularProgressIndicator(strokeWidth: 2),
+      )
+          : const Icon(Icons.auto_awesome),
+      label: Text(_isClassifying ? 'Classifying...' : 'Classify'),
     );
   }
 
@@ -165,13 +168,52 @@ class _HomePageState extends State<HomePage> {
         imageQuality: 85,
       );
 
-      if (picked == null) return;
+      if (picked == null) {
+        // user cancelled
+        return;
+      }
 
       setState(() {
         _selectedFile = File(picked.path);
       });
     } catch (e) {
       _showSnack(context, 'Failed to pick image: $e');
+    }
+  }
+
+  Future<void> _onClassifyPressed(BuildContext context) async {
+    if (_selectedFile == null) {
+      _showSnack(context, 'Pick or capture an image first.');
+      return;
+    }
+
+    setState(() {
+      _isClassifying = true;
+    });
+
+    try {
+      final api = PredictionApi.instance;
+      final result = await api.classifyImage(_selectedFile!);
+
+      if (!mounted) return;
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ResultPage(
+            imageFile: _selectedFile!,
+            label: result.label,
+            confidence: result.confidence,
+          ),
+        ),
+      );
+    } catch (e) {
+      _showSnack(context, 'Failed to classify image: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isClassifying = false;
+        });
+      }
     }
   }
 
